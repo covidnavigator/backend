@@ -11,6 +11,7 @@ export interface ArticleInterface {
   ref: string
   language: string
   description: string
+  authors: string[]
   created: Date
   url: string
   updated: Date

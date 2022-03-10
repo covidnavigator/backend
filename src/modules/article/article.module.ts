@@ -19,6 +19,8 @@ import { State } from '../geography/entities/state.entity'
 import { Locality } from '../geography/entities/localities.entity'
 import { Region } from '../geography/entities/regions.entity'
 import { PermissionsService } from '../permissions/permissions.service'
+import { ArticleJournal } from './article_journal.entity';
+import { ArticleExternalSources } from './article_external_sources.entity';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { PermissionsService } from '../permissions/permissions.service'
       State,
       Locality,
       Region,
+      ArticleJournal,
+      ArticleExternalSources,
     ]),
   ],
   controllers: [ArticleController],

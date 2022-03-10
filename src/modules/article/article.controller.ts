@@ -16,7 +16,7 @@ import { ArticleService } from './article.service'
 import { UserEntity } from '../user/user.entity'
 import { PaginationSearchDto } from '../dto/pagination.dto'
 import { PaginatedArticlesResultDto } from '../dto/article.paginatedResults.dto'
-import { AssetDTO } from '../dto/asset.dto'
+import { AssetDTO, ExternalSources } from '../dto/asset.dto'
 import { JWTGuard } from '../auth/guards/jwt.guard'
 import { User } from '../user/user.decorator'
 
@@ -51,6 +51,11 @@ export class ArticleController {
     return this.articleService.getCount(user)
   }
 
+  @Get('/external_sources')
+  getArticleExternalSources(): Promise<ExternalSources[]> {
+    return this.articleService.getExternalSources()
+  }
+
   @Get('/profile')
   @UseGuards(JWTGuard)
   getArticlesByIds(
@@ -66,6 +71,11 @@ export class ArticleController {
       paginationDto,
       status
     )
+  }
+
+  @Get('/journals')
+  getArticleJournals() {
+    return this.articleService.getArticleJournals();
   }
 
   @Get(':id')

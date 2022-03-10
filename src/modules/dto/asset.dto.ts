@@ -13,6 +13,7 @@ export class AssetDTO {
   curators: Curators[]
   keywords: Keyword[]
   geography: Geography
+  external_sources: ExternalSources[]
 }
 
 class Curators {
@@ -25,4 +26,9 @@ export class AssetInterfaceDTO {
   data: ArticleInterface
   organization: Organization
   curators: Curators[]
+}
+
+export class ExternalSources {
+  external_name: string
+  external_ids: string
 }

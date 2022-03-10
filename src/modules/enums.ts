@@ -52,6 +52,8 @@ export enum categories {
   rules = 'rules',
   workflow = 'workflow',
   model = 'model',
+  systemrev = 'systemrev',
+  assertion = 'assertion',
 }
 
 export enum role {

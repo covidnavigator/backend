@@ -22,6 +22,8 @@ import { PanCountry } from '../geography/entities/pancountries.entity'
 import { Region } from '../geography/entities/regions.entity'
 import { State } from '../geography/entities/state.entity'
 import { Locality } from '../geography/entities/localities.entity'
+import { ArticleJournal } from './article_journal.entity';
+import { ArticleExternalSources } from './article_external_sources.entity';
 
 @Entity('articles')
 export class Article {
@@ -39,8 +41,11 @@ export class Article {
   @Column({ nullable: true })
   ref: string
 
-  @Column({ default: 'English' })
+  @Column({ default: 'en' })
   language: string
+
+  @Column('varchar', { array: true, default: {} })
+  authors: string[]
 
   @Column({ type: 'text', default: '' })
   description: string
@@ -53,6 +58,9 @@ export class Article {
 
   @UpdateDateColumn()
   updated: Date
+
+  @Column({ nullable:true })
+  published_date: string
 
   @Column({ default: '' })
   url: string
@@ -142,4 +150,16 @@ export class Article {
     article_curator => article_curator.article
   )
   article_curator: ArticleCurator[]
+
+  @ManyToOne(() => ArticleJournal, { cascade: true, nullable: true })
+  journal: ArticleJournal
+
+  @Column({default: ''})
+  external_id: string
+
+  @OneToMany(
+    () => ArticleExternalSources,
+    article_external_sources => article_external_sources.article
+  )
+  external_sources: ArticleExternalSources[]
 }

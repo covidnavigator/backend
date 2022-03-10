@@ -6,7 +6,7 @@ import { Article } from './article.entity'
 import { ArticleInterface } from './article.interfaces'
 import { UserEntity } from '../user/user.entity'
 
-import { AssetDTO, AssetInterfaceDTO } from '../dto/asset.dto'
+import { AssetDTO, AssetInterfaceDTO, ExternalSources } from '../dto/asset.dto'
 import { PaginationSearchDto } from '../dto/pagination.dto'
 import { PaginatedArticlesResultDto } from '../dto/article.paginatedResults.dto'
 import { Organization } from '../organization/organization.entity'
@@ -17,6 +17,8 @@ import { OrganizationService } from '../organization/organization.service'
 import { KeywordsConsolidated } from '../keywords/keywordsConsolidated.entity'
 import { GeographyService } from '../geography/geography.service'
 import { PermissionsService } from '../permissions/permissions.service'
+import { ArticleJournal } from './article_journal.entity';
+import { ArticleExternalSources } from './article_external_sources.entity';
 
 @Injectable()
 export class ArticleService {
@@ -32,10 +34,13 @@ export class ArticleService {
     @InjectRepository(ArticleCurator)
     private readonly articleCuratorRepository: Repository<ArticleCurator>,
     @InjectRepository(KeywordsConsolidated)
-    private readonly keywordsConsolidatedRepository: Repository<
-      KeywordsConsolidated
-    >
-  ) {}
+    private readonly keywordsConsolidatedRepository: Repository<KeywordsConsolidated>,
+    @InjectRepository(ArticleJournal)
+    private readonly articleJournalsRepository: Repository<ArticleJournal>,
+    @InjectRepository(ArticleExternalSources)
+    private readonly articleExternalSourceRepository: Repository<ArticleExternalSources>,
+  ) {
+  }
 
   static articleToResponseObject(article: Article): ArticleInterface {
     const responseObject = {
@@ -47,9 +52,11 @@ export class ArticleService {
       ref: article.ref,
       language: article.language,
       description: article.description,
+      authors: article.authors,
       created: article.created,
       url: article.url,
       updated: article.updated,
+      published_date: article.published_date,
       role: article.role,
       categories: article.categories,
       notes: article.notes,
@@ -100,6 +107,15 @@ export class ArticleService {
         ? article.state_or_provinces.map(item => item.state)
         : [],
       author: article.author,
+      journal: article.journal,
+      external_sources: article.external_sources
+        ? article.external_sources.map(es => {
+          return {
+            external_name: es.external_name,
+            external_ids: es.external_ids,
+          }
+        })
+        : [],
     }
 
     return responseObject
@@ -313,8 +329,10 @@ export class ArticleService {
         'article.ref',
         'article.language',
         'article.description',
+        'article.authors',
         'article.notes',
         'article.created',
+        'article.published_date',
         'article.url',
         'article.role',
         'article.formalism',
@@ -334,12 +352,17 @@ export class ArticleService {
         'state_or_provinces.state',
         'locality.locality',
         'author.username',
+        'author.id',
+        'journal.id',
+        'journal.name'
       ])
       .leftJoin('article.article_curator', 'ac')
+      .leftJoinAndSelect('article.external_sources', 'ex')
       .leftJoinAndSelect('ac.curator', 'curator')
       .leftJoinAndSelect('article.organization', 'organization')
       .leftJoinAndSelect('organization.contacts', 'contacts')
       .leftJoin('article.author', 'author')
+      .leftJoin('article.journal', 'journal')
       .leftJoin('article.localities', 'locality')
       .leftJoin('article.state_or_provinces', 'state_or_provinces')
       .leftJoin('article.regions', 'regions')
@@ -397,7 +420,14 @@ export class ArticleService {
       )
     }
 
+    if (article.data.journal) {
+      const journalSavedId = await this.saveArticleJournal(article.data.journal)
+      article.data.journal = journalSavedId;
+    }
+
     const saved = await this.articleRepository.save(article.data)
+
+    await this.saveExternalSources(saved, article);
 
     await this.organizationService.saveCurators(saved, article)
 
@@ -460,6 +490,11 @@ export class ArticleService {
       updatedArticle.data.organization = savedOrganization
     }
 
+    if (updatedArticle.data.journal) {
+      const journalSavedId = await this.saveArticleJournal(updatedArticle.data.journal)
+      updatedArticle.data.journal = journalSavedId;
+    }
+
     const newArticle = await this.articleRepository.findOne(id)
 
     const toUpdate = {
@@ -479,11 +514,56 @@ export class ArticleService {
       'article'
     )
 
+    await this.saveExternalSources(saved, updatedArticle);
+
     return saved
   }
 
   async deleteArticle(id: number): Promise<Article> {
     const article = await this.articleRepository.findOne(id)
     return await this.articleRepository.remove(article)
+  }
+
+  async getArticleJournals(): Promise<ArticleJournal[]> {
+    const journals = await this.articleJournalsRepository.createQueryBuilder(
+      `journals`).orderBy('name', 'ASC').getRawMany();
+    return journals;
+  }
+
+  async saveArticleJournal(journal): Promise<ArticleJournal> {
+    if (journal.selected.id) {
+      return { id: journal.selected.id };
+    } else if (journal.name !== '' && !journal.selected.id) {
+      const newJournal = await this.articleJournalsRepository.save({ name: journal.name });
+      return { id: newJournal.id }
+    } else {
+      return null;
+    }
+  }
+
+  async saveExternalSources(saved: Article, article: AssetDTO): Promise<void> {
+    await this.articleExternalSourceRepository.delete({ article: saved })
+
+    const array = []
+      article.external_sources.forEach(source => {
+        if (source.external_name !== '' && source.external_ids !== '')
+        array.push({
+          external_name: source.external_name,
+          external_ids: source.external_ids,
+          articleId: saved.id,
+        })
+    })
+
+    if (array.length) {
+      await this.articleExternalSourceRepository.save(array)
+    }
+  }
+
+  async getExternalSources(): Promise<ExternalSources[]> {
+    const request = await this.articleExternalSourceRepository
+      .createQueryBuilder('article_external_sources')
+      .select('DISTINCT ("external_name")').where(`external_name != ''`).getRawMany();
+
+    return request;
   }
 }
